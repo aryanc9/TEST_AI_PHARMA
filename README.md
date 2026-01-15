@@ -70,7 +70,7 @@ User → /chat API
 
 ---
 
-##📦 Installation Guide
+## 📦 Installation Guide
 
 ### 1. How to install
 ```bash
@@ -180,3 +180,6 @@ Response:
   "order_id": 3
 }
 
+## 3 ⚙️ How to Run (Production)
+
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000

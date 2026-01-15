@@ -1,52 +1,30 @@
 import os
-from pathlib import Path
-from typing import Literal
 
-
-# -------------------------------------------------------------------
 # Environment
-# -------------------------------------------------------------------
+ENV = os.getenv("ENV", "development")
 
-ENV: Literal["dev", "prod"] = os.getenv("APP_ENV", "dev")
-
-
-# -------------------------------------------------------------------
-# Base Paths
-# -------------------------------------------------------------------
-
-BASE_DIR = Path(__file__).resolve().parents[2]
-DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "pharmacy.db"))
-
-
-# -------------------------------------------------------------------
 # Database
-# -------------------------------------------------------------------
-
-DATABASE_URL = f"sqlite:///{DB_PATH}"
-
-
-# -------------------------------------------------------------------
-# LLM Configuration
-# -------------------------------------------------------------------
-
-LLM_PROVIDER: Literal["ollama", "gemini"] = os.getenv(
-    "LLM_PROVIDER", "ollama"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite:///./pharmacy.db"
 )
 
+# Server
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", 8000))
+RELOAD = ENV == "development"
+
+# LLM
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 
-# Gemini (future-ready, optional)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# Safety
+MAX_QTY_PER_ORDER = int(os.getenv("MAX_QTY_PER_ORDER", 30))
 
-
-# -------------------------------------------------------------------
 # Scheduler
-# -------------------------------------------------------------------
-
 REFILL_INTERVAL_SECONDS = int(
-    os.getenv("REFILL_INTERVAL_SECONDS", "60")
+    os.getenv("REFILL_INTERVAL_SECONDS", 3600)
 )
-
 
 # -------------------------------------------------------------------
 # Observability

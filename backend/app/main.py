@@ -6,6 +6,13 @@ from backend.app.api.chat import router as chat_router
 from backend.app.api.admin import router as admin_router
 from backend.app.api.health import router as health_router
 from backend.app.api import chat, admin
+from backend.app.config import ENV
+
+app = FastAPI(
+    title="Agentic AI Pharmacy",
+    debug=ENV == "development"
+)
+app.include_router(chat_router)
 
 
 models.Base.metadata.create_all(bind=engine)
