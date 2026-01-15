@@ -1,35 +1,41 @@
-# backend/app/api/orders.py
-
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional, List
+from fastapi import APIRouter
 from backend.app.db.database import SessionLocal
-from backend.app.services.order_service import create_order
+from backend.app.db.models import OrderHistory
 
-router = APIRouter(prefix="/api/orders", tags=["Orders"])
+"""
+Orders Admin API
 
-class OrderItemRequest(BaseModel):
-    medicine_id: int
-    quantity: int
-    dosage: Optional[str] = None
+Purpose:
+- View historical orders placed by customers
+- Used by admins, auditors, and judges
+- Read-only (orders are created by agents)
+"""
 
-class OrderRequest(BaseModel):
-    customer_id: int
-    items: List[OrderItemRequest]
+router = APIRouter(
+    prefix="/admin/orders",
+    tags=["admin"]
+)
 
-def get_db():
+
+@router.get("/")
+def list_orders():
+    """
+    List all order history records.
+
+    Admin-only endpoint.
+    Returns:
+    - customer_id
+    - medicine_name
+    - quantity
+    - created_at
+    """
     db = SessionLocal()
     try:
-        yield db
+        orders = (
+            db.query(OrderHistory)
+            .order_by(OrderHistory.created_at.desc())
+            .all()
+        )
+        return orders
     finally:
         db.close()
-
-@router.post("/")
-def place_order(order: OrderRequest, db: Session = Depends(get_db)):
-    new_order = create_order(
-        db,
-        order.customer_id,
-        [item.dict() for item in order.items]
-    )
-    return {"order_id": new_order.id, "status": "created"}

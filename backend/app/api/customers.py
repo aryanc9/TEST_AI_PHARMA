@@ -1,29 +1,56 @@
-# backend/app/api/customers.py
-
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter
 from backend.app.db.database import SessionLocal
-from backend.app.services.customer_service import (
-    get_customer,
-    get_customer_history
+from backend.app.db.models import Customer
+
+"""
+Customers Admin API
+
+Purpose:
+- View registered customers
+- Used for auditing, debugging, and judge visibility
+- Read-only (customers are created via seed or future onboarding)
+"""
+
+router = APIRouter(
+    prefix="/admin/customers",
+    tags=["admin"]
 )
 
-router = APIRouter(prefix="/api/customers", tags=["Customers"])
 
-def get_db():
+@router.get("/")
+def list_customers():
+    """
+    List all customers.
+
+    Returns:
+    - id
+    - name
+    - created_at (if present in model)
+    """
     db = SessionLocal()
     try:
-        yield db
+        customers = db.query(Customer).all()
+        return customers
     finally:
         db.close()
 
-@router.get("/{customer_id}")
-def fetch_customer(customer_id: int, db: Session = Depends(get_db)):
-    customer = get_customer(db, customer_id)
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    return customer
 
-@router.get("/{customer_id}/history")
-def fetch_customer_history(customer_id: int, db: Session = Depends(get_db)):
-    return get_customer_history(db, customer_id)
+@router.get("/{customer_id}")
+def get_customer(customer_id: int):
+    """
+    Get a single customer by ID.
+    """
+    db = SessionLocal()
+    try:
+        customer = (
+            db.query(Customer)
+            .filter(Customer.id == customer_id)
+            .first()
+        )
+
+        if not customer:
+            return {"error": "Customer not found"}
+
+        return customer
+    finally:
+        db.close()

@@ -1,31 +1,61 @@
 from fastapi import FastAPI
-from backend.app.db.database import engine
-from backend.app.db import models
-from backend.app.api import medicines, customers, orders
+from fastapi.middleware.cors import CORSMiddleware
+
 from backend.app.api.chat import router as chat_router
 from backend.app.api.admin import router as admin_router
-from backend.app.api.health import router as health_router
-from backend.app.api import chat, admin
-from backend.app.config import ENV
+from backend.app.api.orders import router as orders_router
+from backend.app.api.customers import router as customers_router
+from backend.app.api.decision_traces import router as decision_traces_router
+
+from backend.app.db.seed_production import seed_production_data
+
 
 app = FastAPI(
-    title="Agentic AI Pharmacy",
-    debug=ENV == "development"
+    title="Agentic Pharmacy Backend",
+    version="1.0.0",
+    description="AI-driven pharmacy automation system"
 )
-app.include_router(chat_router)
+
+# -----------------------------
+# Middleware
+# -----------------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # tighten in real prod
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# -----------------------------
+# Startup hooks
+# -----------------------------
+@app.on_event("startup")
+def on_startup():
+    seed_production_data()
 
 
-models.Base.metadata.create_all(bind=engine)
-
-app = FastAPI(title="Agentic AI Pharmacy System")
-
-app.include_router(medicines.router)
-app.include_router(customers.router)
-app.include_router(orders.router)
-app.include_router(health_router)
-app.include_router(chat_router)
-app.include_router(admin_router) 
-
+# -----------------------------
+# Health & Root
+# -----------------------------
 @app.get("/")
-def health_check():
+def root():
     return {"status": "Pharmacy backend running"}
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "agentic-pharmacy",
+        "environment": "production"
+    }
+
+
+# -----------------------------
+# Routers
+# -----------------------------
+app.include_router(chat_router)
+app.include_router(admin_router)
+app.include_router(orders_router)
+app.include_router(customers_router)
+app.include_router(decision_traces_router)
