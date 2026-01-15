@@ -12,13 +12,14 @@ def build_pharmacy_graph():
     graph = StateGraph(PharmacyState)
 
     # ✅ Each node explicitly declares what it writes
+    print("STATE TYPES:", {k: type(v) for k, v in state.items()})
 
     graph.add_node(
         "memory_agent",
         memory_agent,
         outputs=["meta", "decision_trace"]
     )
-
+    
     graph.add_node(
         "conversation_agent",
         conversation_agent,
