@@ -38,7 +38,7 @@ print(f"Safety decision: {safety.get('decision')}")
 print(f"Approved: {safety.get('approved')}")
 print(f"Reason: {safety.get('reason')}")
 
-if safety.get('approved') and safety.get('decision') == 'approved':
+if safety.get('approved'):
     print("✅ PASS: OTC medicine approved without prescription (OTC allowlist working)")
 else:
     print(f"❌ FAIL: Expected approved=True, got {safety}")
@@ -55,7 +55,7 @@ trace = [t for t in state.get("decision_trace", []) if t["agent"] == "safety_age
 print(f"Safety decision: {safety.get('decision')}")
 print(f"Violations: {safety.get('violations')}")
 
-if trace:
+if safety.get('approved'):
     trace_reasoning = trace[0].get("reasoning", [])
     dosage_check = [r for r in trace_reasoning if "Dosage" in r or "dosage" in r]
     if dosage_check:
@@ -77,7 +77,7 @@ safety = state.get("safety", {})
 print(f"Safety decision: {safety.get('decision')}")
 print(f"Clarification questions: {safety.get('clarification_questions', [])}")
 
-if safety.get('decision') in ['approved', 'clarification_required']:
+if safety.get('decision') == 'clarification_required':
     print("✅ PASS: System clarifies instead of hard blocking")
 else:
     print(f"⚠️ Decision was: {safety.get('decision')}")

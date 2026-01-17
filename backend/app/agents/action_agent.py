@@ -2,6 +2,8 @@ from app.graph.state import PharmacyState
 from app.db.database import SessionLocal
 from app.db.models import Medicine
 from app.services.order_service import create_order
+from app.services.webhook_service import trigger_warehouse_webhook, send_order_confirmation
+import asyncio
 
 
 def action_agent(state: PharmacyState) -> PharmacyState:
@@ -36,9 +38,25 @@ def action_agent(state: PharmacyState) -> PharmacyState:
 
         order = create_order(db, customer_id, order_items)
 
+        # Trigger warehouse webhook
+        webhook_result = asyncio.run(trigger_warehouse_webhook(
+            order_id=order.id,
+            medicines=medicines,
+            customer_id=customer_id
+        ))
+        
+        # Send order confirmation
+        confirmation_result = send_order_confirmation(
+            customer_id=customer_id,
+            order_id=order.id,
+            medicines=medicines
+        )
+
         state["execution"] = {
             "order_id": order.id,
-            "actions": ["order_created", "inventory_updated"],
+            "actions": ["order_created", "inventory_updated", "webhook_triggered", "confirmation_sent"],
+            "webhook_status": webhook_result.get("status"),
+            "confirmation_status": confirmation_result.get("status")
         }
 
         state["decision_trace"].append({

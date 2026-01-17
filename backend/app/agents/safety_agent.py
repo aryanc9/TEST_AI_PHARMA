@@ -58,13 +58,11 @@ def safety_agent(state: PharmacyState) -> PharmacyState:
         reasoning_steps.append("No medicines found in extraction")
         decision = "blocked"
     else:
-        # --- Normalization helpers ---
+        # --- Normalization helper ---
         def normalize(text):
-            # Lowercase, strip, remove dosage (e.g. 'Paracetamol 500mg' -> 'paracetamol')
             if not text:
                 return ""
             t = text.lower().strip()
-            # Remove trailing dosage (e.g. 'paracetamol 500mg' -> 'paracetamol')
             t = re.sub(r"\b\d+\s*mg\b", "", t)
             t = re.sub(r"\b\d+\s*mcg\b", "", t)
             t = re.sub(r"\b\d+\s*ml\b", "", t)
@@ -72,7 +70,6 @@ def safety_agent(state: PharmacyState) -> PharmacyState:
             return t.strip()
 
         all_meds = db.query(Medicine).all()
-
         for item in medicines:
             name = item["name"]
             quantity = item["quantity"]
@@ -82,20 +79,21 @@ def safety_agent(state: PharmacyState) -> PharmacyState:
             norm_name = normalize(name)
             medicine = None
             for m in all_meds:
-                if normalize(m.name) == norm_name:
+                if norm_name == normalize(m.name):
                     medicine = m
                     break
             if not medicine:
-                # Try partial match (e.g. 'paracetamol' in 'paracetamol 500mg')
+                # Try partial match: input is substring of DB name or vice versa
                 for m in all_meds:
-                    if norm_name in normalize(m.name):
+                    db_norm = normalize(m.name)
+                    if norm_name in db_norm or db_norm in norm_name:
                         medicine = m
                         break
             if not medicine:
                 error_type = "VALIDATION"
                 violations.append(f"Medicine not found: {name}")
                 reasoning_steps.append(
-                    f"❌ Medicine '{name}' not found in inventory (normalized lookup failed)"
+                    f"❌ Medicine '{name}' not found in inventory (full normalization failed)"
                 )
                 decision = "blocked"
                 continue
