@@ -19,7 +19,17 @@ This system behaves like an expert pharmacist:
 - Robust extraction of medicine, dosage, and quantity
 - Handles messy human language
 
-### 🛡 Safety & Policy Enforcement
+### � Document Processing (NEW!)
+- **Prescription Upload**: Extract medicine data from prescription images
+- **Medical Report Upload**: Extract findings and test results from medical reports
+- **Dual OCR Engines**:
+  - **PaddleOCR**: Fast local OCR (2-3 seconds), offline-capable
+  - **Google Document AI**: High-accuracy cloud OCR (95%+), structured data extraction
+- **Automatic Fallback**: If primary OCR fails, automatically switches to alternative
+- **Confidence Scoring**: Quality metrics for each extraction (0.0-1.0 scale)
+- **Async Processing**: Background task handling for large files
+
+### �🛡 Safety & Policy Enforcement
 - Inventory is the single source of truth
 - Prescription enforcement
 - Stock validation
@@ -47,13 +57,55 @@ Multiple specialized agents collaborate:
 
 ## 🧩 System Architecture
 
-User → /chat API
-→ Memory Agent
-→ Conversation Agent (LLM)
-→ Safety Agent
-→ Action Agent
-→ Refill Intelligence
-→ Database + Alerts
+```
+┌─────────────┐
+│   Frontend  │ (React 5173)
+│  Dashboard  │
+└──────┬──────┘
+       │
+       ├──────► /chat API (Conversational)
+       │
+       ├──────► /documents/prescription/upload (OCR)
+       │
+       └──────► /documents/medical-report/upload (OCR)
+               │
+               ▼
+         ┌──────────────────┐
+         │   Backend API    │ (FastAPI 8000)
+         └────────┬─────────┘
+                  │
+        ┌─────────┼─────────┐
+        │         │         │
+        ▼         ▼         ▼
+    ┌────────┬──────────┬────────────┐
+    │Memory  │Agents &  │Document    │
+    │Agent   │LLM Logic │Processor   │
+    └────┬───┴────┬─────┴─────┬──────┘
+         │        │           │
+         └────────┼───────────┘
+                  │
+              ┌───▼────┐
+              │Database│ (SQLite)
+              └────────┘
+                  │
+        ┌─────────┼──────────┐
+        │         │          │
+        ▼         ▼          ▼
+    Orders   Documents  Prescriptions
+```
+
+### OCR Pipeline
+```
+Image Upload
+    │
+    ├─► PaddleOCR (Fast, Local)
+    │   └─► Success? Return Results
+    │   └─► Failed? Try Fallback
+    │
+    └─► Google Document AI (Accurate, Cloud)
+        └─► Success? Return Results
+        └─► Failed? Return Error
+```
 
 
 ---
@@ -65,6 +117,12 @@ User → /chat API
 - **LLM**: LLaMA 3.1 (via Ollama, optional)
 - **Database**: SQLite
 - **ORM**: SQLAlchemy
+- **OCR/Document Processing**: 
+  - PaddleOCR 3.3.3 (local, fast)
+  - Google Document AI 3.8.0 (cloud, accurate)
+  - Pillow 11.3.0 (image processing)
+  - OpenCV 4.13.0.90 (computer vision)
+- **Frontend**: React 18 + Vite + Tailwind CSS
 - **Containerization**: Docker
 - **Observability**: Decision Trace Logs
 
@@ -151,35 +209,93 @@ docker run -p 8000:8000 agentic-pharmacy
 
 ## ⚙️ How to Run (Local)
 
-### 2. Create virtual environment
+### 1. Backend Setup
 ```bash
+cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+```
 
-2. Initialize database
+### 2. Initialize Database
+```bash
 python3 -m backend.app.db.seed_data
+```
 
-3. Start server
-uvicorn backend.app.main:app --reload
+### 3. Start Backend Server
+```bash
+cd backend
+DISABLE_MODEL_SOURCE_CHECK=True python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+Backend runs at: http://localhost:8000
 
-4. Open Swagger
-http://127.0.0.1:8000/docs
+### 4. Start Frontend Server (New Terminal)
+```bash
+cd frontend
+npm install  # First time only
+npm run dev
+```
+Frontend runs at: http://localhost:5173
 
-💬 Chat API Example
+### 5. Access Dashboard
+Open your browser and navigate to: **http://localhost:5173**
+
+### 6. Verify Installation
+- **Swagger UI**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
+- **Document Processing**: Navigate to "Document Processing" in sidebar
+
+## 💬 API Examples
+
+### Chat Endpoint
+```bash
 curl -X POST http://127.0.0.1:8000/chat/ \
   -H "Content-Type: application/json" \
   -d '{"customer_id":1,"message":"I need paracetamol 500mg"}'
+```
 
-
-  
 Response:
+```json
 {
   "approved": true,
   "reply": "Order placed successfully",
   "order_id": 3
 }
+```
 
-## 3 ⚙️ How to Run (Production)
+### Upload Prescription (Document Processing)
+```bash
+curl -X POST http://localhost:8000/documents/prescription/upload \
+  -F "customer_id=1" \
+  -F "file=@path/to/prescription.jpg" \
+  -F "provider=paddle"
+```
 
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+### Get Prescription Results
+```bash
+curl http://localhost:8000/documents/prescription/{document_id}
+```
+
+Response:
+```json
+{
+  "status": "success",
+  "document_id": "uuid",
+  "medicines": [
+    {
+      "name": "Paracetamol",
+      "dosage": "500mg",
+      "frequency": "3 times daily",
+      "quantity": "30 tablets"
+    }
+  ],
+  "confidence_score": 0.95,
+  "extracted_at": "2026-01-21T11:45:00Z"
+}
+```
+
+## 🐳 Docker Installation (Optional)
+```bash
+docker build -t agentic-pharmacy .
+docker run -p 8000:8000 -p 5173:5173 agentic-pharmacy
+```
